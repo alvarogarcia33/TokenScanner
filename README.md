@@ -1,0 +1,128 @@
+# Token Scanner Local
+
+Scanner local para Netsbo con dos herramientas:
+- `Token Scanner` para holders por token.
+- `Wallet Report` para rastrear entradas, salidas y self-transfers de una wallet.
+
+## Requisitos
+- Python 3.11 o 3.12
+- Internet para consultar el RPC de Netsbo
+
+## Instalación
+```powershell
+cd token_scanner_local
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+python app.py
+```
+
+Abrí en el navegador:
+
+http://127.0.0.1:5000
+
+## Qué hace ahora
+- Construye un índice local persistente por token usando eventos `Transfer`.
+- Reutiliza ese índice en escaneos futuros y solo sincroniza bloques nuevos.
+- Guarda el estado local en SQLite para no perder el progreso entre reinicios.
+- Revalida una ventana reciente de bloques antes de continuar para tolerar reorgs superficiales.
+- Puede ejecutar una verificación estricta final con `balanceOf()` sobre los resultados filtrados.
+- Permite cancelar jobs largos y exportar los resultados completos a XLSX o CSV.
+- Genera reportes de wallet con todos los movimientos `IN`, `OUT` y `SELF` en un rango de días.
+- Guarda los reportes de wallet en disco para poder descargarlos sin depender solo de la memoria del proceso.
+- Está preparado para ejecutarse normal con Python o empaquetado como `.exe`.
+
+## Cómo funciona
+1. La primera vez que escaneás un token, la app sincroniza su historial de `Transfer` y crea un índice local.
+2. En escaneos posteriores, la app lee ese índice y solo agrega bloques nuevos.
+3. Antes de seguir, la app puede resincronizar una ventana reciente para evitar inconsistencias por reorgs superficiales.
+4. El filtro por balance se hace sobre la base local, evitando llamar `balanceOf()` wallet por wallet.
+5. Si activás la verificación estricta, la salida final se confirma otra vez on-chain con `balanceOf()`.
+
+Esto acelera muchísimo los usos repetidos sin perder consistencia del historial ya procesado.
+
+## Notas
+- La primera sincronización de un token puede tardar bastante; después los escaneos son mucho más rápidos.
+- El índice se construye desde eventos `Transfer` y se mantiene en SQLite.
+- La app reconsulta una ventana reciente de bloques para mantener la consistencia del índice.
+- Si un token define `startBlock` en `tokens.json`, el índice empieza desde ahí para acelerar el proceso.
+- La exportación XLSX y CSV descarga todos los resultados del job.
+- El `Wallet Report` revisa eventos `Transfer` donde la wallet aparece como origen o destino y arma un Excel con hoja de resumen y hoja de movimientos.
+- Para no perder precisión, el Excel del `Wallet Report` guarda `Amount` como texto exacto y también incluye `Raw Value`.
+- En ejecución normal, la base `scanner_data.db` queda junto a `app.py`.
+- En modo `.exe`, la base y los reportes se guardan por defecto en `%LOCALAPPDATA%\TokenScannerLocal`.
+
+## Variables útiles
+Si querés cambiar el RPC:
+
+```powershell
+$env:NETSBO_RPC_URL="https://rpc1.netsbo.io"
+python app.py
+```
+
+También podés ajustar el comportamiento del scanner:
+
+```powershell
+$env:TOKEN_SCANNER_BATCH_SIZE="5000"
+$env:TOKEN_SCANNER_MIN_BATCH_SIZE="100"
+$env:TOKEN_SCANNER_CONFIRMATION_BLOCKS="6"
+$env:TOKEN_SCANNER_REORG_LOOKBACK_BLOCKS="25"
+$env:TOKEN_SCANNER_STRICT_RESULT_VALIDATION="0"
+$env:TOKEN_SCANNER_JOB_RETENTION_SECONDS="3600"
+$env:TOKEN_SCANNER_DATA_DIR="C:\mis_datos\token_scanner"
+$env:TOKEN_SCANNER_WALLET_REPORT_BATCH_SIZE="3000"
+$env:TOKEN_SCANNER_WALLET_REPORT_MIN_BATCH_SIZE="100"
+$env:TOKEN_SCANNER_WALLET_REPORT_MAX_DAYS="3650"
+python app.py
+```
+
+## Construir el `.exe`
+Hay un script listo para compilar la app con PyInstaller:
+
+```powershell
+.\build_exe.ps1
+```
+
+Eso genera un ejecutable en `dist\TokenScannerLocal.exe`.
+
+Para generar la release final con el nombre principal:
+
+```powershell
+.\build_release.ps1
+```
+
+Eso deja una sola release principal en:
+
+`release\TokenScannerLocal.exe`
+
+## Construir el instalador
+Hay un script para compilar un instalador Windows con Inno Setup:
+
+```powershell
+.\build_installer.ps1
+```
+
+El instalador resultante queda en:
+
+`release\TokenScannerLocal-Setup.exe`
+
+El script busca `ISCC.exe` en instalación normal o por usuario. Si no lo encuentra, instalá Inno Setup o pasá la ruta manualmente:
+
+```powershell
+.\build_installer.ps1 -IsccPath "C:\ruta\ISCC.exe"
+```
+
+El instalador está configurado para instalar por usuario en:
+
+`%LOCALAPPDATA%\Programs\TokenScannerLocal`
+
+Nota:
+- El build quedó probado con Python 3.14, pero `web3`/`pydantic` emiten warnings en ese entorno.
+- Para una distribución más conservadora y estable, conviene generar el `.exe` final con Python 3.12.
+- En esta máquina también quedó probado un build funcional con Python 3.13.
+
+Si querés instalar primero las dependencias de build:
+
+```powershell
+.\.venv\Scripts\python -m pip install -r requirements-build.txt
+```

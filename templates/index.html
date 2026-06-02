@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Scanner Local</title>
+  <style>
+    :root{
+      --bg:#08111f;
+      --bg-soft:#101c30;
+      --panel:#0f1728cc;
+      --panel-solid:#0f1728;
+      --line:#21324f;
+      --line-strong:#2f466d;
+      --text:#ecf3ff;
+      --muted:#9ab0d0;
+      --primary:#ff8a3d;
+      --primary-strong:#ff6b1a;
+      --accent:#25c0a6;
+      --danger:#ef4444;
+      --warning:#f59e0b;
+      --shadow:0 20px 45px rgba(3, 10, 25, .35);
+      --radius:18px;
+    }
+
+    * { box-sizing:border-box; }
+
+    body {
+      margin:0;
+      min-height:100vh;
+      font-family:"Aptos","Segoe UI",sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255,138,61,.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(37,192,166,.12), transparent 32%),
+        linear-gradient(180deg, #08111f 0%, #0a1424 100%);
+    }
+
+    .wrap {
+      max-width:1180px;
+      margin:0 auto;
+      padding:28px 20px 40px;
+    }
+
+    .hero, .card {
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(12px);
+    }
+
+    .hero {
+      padding:26px;
+      margin-bottom:18px;
+      overflow:hidden;
+      position:relative;
+    }
+
+    .hero::after {
+      content:"";
+      position:absolute;
+      inset:auto -120px -120px auto;
+      width:260px;
+      height:260px;
+      background:radial-gradient(circle, rgba(255,138,61,.28), transparent 65%);
+      pointer-events:none;
+    }
+
+    h1, h2, h3 { margin:0; }
+
+    h1 {
+      font-size:clamp(2rem, 4vw, 3rem);
+      line-height:1.05;
+      max-width:760px;
+      letter-spacing:-.03em;
+    }
+
+    .lead {
+      margin:14px 0 0;
+      max-width:800px;
+      color:var(--muted);
+      font-size:1rem;
+      line-height:1.6;
+    }
+
+    .hero-meta {
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:18px;
+    }
+
+    .pill {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:9px 12px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .card {
+      padding:22px;
+      margin-bottom:18px;
+    }
+
+    .grid {
+      display:grid;
+      grid-template-columns:2fr 1fr 1fr auto;
+      gap:14px;
+      align-items:end;
+    }
+
+    .wallet-grid {
+      grid-template-columns:2fr 1fr auto;
+    }
+
+    @media (max-width: 960px){
+      .grid { grid-template-columns:1fr; }
+      .wallet-grid { grid-template-columns:1fr; }
+      .actions { width:100%; }
+    }
+
+    label {
+      display:block;
+      margin-bottom:8px;
+      font-size:14px;
+      color:var(--muted);
+    }
+
+    select, input, button {
+      width:100%;
+      border-radius:14px;
+      border:1px solid var(--line-strong);
+      background:var(--panel-solid);
+      color:var(--text);
+      padding:12px 14px;
+      font:inherit;
+      transition:border-color .2s ease, transform .2s ease, background .2s ease;
+    }
+
+    select:focus, input:focus {
+      outline:none;
+      border-color:var(--primary);
+    }
+
+    button {
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    button:hover:not(:disabled) {
+      transform:translateY(-1px);
+    }
+
+    button:disabled {
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .btn-primary {
+      background:linear-gradient(135deg, var(--primary), var(--primary-strong));
+      border-color:transparent;
+      color:#fff7ed;
+    }
+
+    .btn-secondary {
+      background:#16243a;
+    }
+
+    .btn-success {
+      background:linear-gradient(135deg, #17a572, #10865c);
+      border-color:transparent;
+    }
+
+    .btn-danger {
+      background:linear-gradient(135deg, #e45454, #c73434);
+      border-color:transparent;
+    }
+
+    .actions {
+      display:flex;
+      gap:10px;
+    }
+
+    .checkrow {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-top:14px;
+      color:var(--muted);
+      font-size:14px;
+      flex-wrap:wrap;
+    }
+
+    .checkrow input[type="checkbox"] {
+      width:18px;
+      height:18px;
+      accent-color:var(--primary);
+      padding:0;
+      border-radius:6px;
+      flex:0 0 auto;
+    }
+
+    .muted { color:var(--muted); }
+    .mono { font-family:"Consolas","Cascadia Code",monospace; }
+    .small { font-size:13px; }
+    .hidden { display:none; }
+
+    .notice {
+      border-radius:14px;
+      padding:14px 16px;
+      margin-bottom:18px;
+      border:1px solid transparent;
+      line-height:1.5;
+    }
+
+    .notice-info {
+      background:rgba(37,192,166,.12);
+      border-color:rgba(37,192,166,.28);
+      color:#cffbf2;
+    }
+
+    .notice-error {
+      background:rgba(239,68,68,.12);
+      border-color:rgba(239,68,68,.26);
+      color:#ffd6d6;
+    }
+
+    .row {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .progress-shell {
+      margin-top:14px;
+      border-radius:999px;
+      background:#15243a;
+      padding:3px;
+    }
+
+    .progress {
+      height:14px;
+      width:100%;
+      overflow:hidden;
+      border-radius:999px;
+      background:#112034;
+    }
+
+    .bar {
+      height:100%;
+      width:0%;
+      border-radius:999px;
+      background:linear-gradient(90deg, var(--accent), #8cf5df);
+      transition:width .25s ease;
+    }
+
+    .stats {
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:12px;
+      margin-top:16px;
+    }
+
+    @media (max-width: 900px){
+      .stats { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 560px){
+      .stats { grid-template-columns:1fr; }
+    }
+
+    .stat {
+      padding:14px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.03);
+    }
+
+    .stat-label {
+      display:block;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+
+    .stat-value {
+      font-size:1.2rem;
+      font-weight:700;
+    }
+
+    .table-wrap {
+      overflow:auto;
+      margin-top:16px;
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:14px;
+    }
+
+    table {
+      width:100%;
+      border-collapse:collapse;
+      background:rgba(8,17,31,.36);
+    }
+
+    th, td {
+      padding:13px 14px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      text-align:left;
+      font-size:14px;
+    }
+
+    th {
+      background:rgba(255,255,255,.03);
+      color:#d6e4ff;
+      position:sticky;
+      top:0;
+    }
+
+    td.num, th.num { text-align:right; }
+
+    tbody tr:hover {
+      background:rgba(255,255,255,.03);
+    }
+
+    .empty {
+      text-align:center;
+      color:var(--muted);
+      padding:28px 14px;
+    }
+
+    .pager {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:14px;
+    }
+
+    .pager-controls {
+      display:flex;
+      gap:10px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <h1>Escaneá holders reales en Netsbo sin depender de explorers externos.</h1>
+    <p class="lead">La app construye un índice local persistente en SQLite a partir de eventos `Transfer`. La primera sincronización puede tardar, pero después solo procesa bloques nuevos y responde mucho más rápido sin rehacer el historial completo.</p>
+    <div class="hero-meta">
+      <span class="pill">RPC configurable por `NETSBO_RPC_URL`</span>
+      <span class="pill">Índice local persistente y reutilizable</span>
+      <span class="pill">Cancelación, exportación y métricas de sincronización</span>
+    </div>
+  </section>
+
+  <div id="notice" class="notice hidden"></div>
+
+  <section class="card">
+    <div class="row" style="margin-bottom:14px;">
+      <div>
+        <h2>Nuevo escaneo</h2>
+        <p class="muted small" style="margin:6px 0 0;">La primera ejecución de un token crea el índice local. A partir de ahí solo se sincronizan bloques nuevos. Si un token tiene `startBlock` en `tokens.json`, el índice arranca desde ahí.</p>
+      </div>
+    </div>
+    <div class="grid">
+      <div>
+        <label for="token">Token</label>
+        <select id="token"></select>
+      </div>
+      <div>
+        <label for="min">Mínimo</label>
+        <input id="min" type="number" min="0" step="any" placeholder="0">
+      </div>
+      <div>
+        <label for="max">Máximo</label>
+        <input id="max" type="number" min="0" step="any" placeholder="5000">
+      </div>
+      <div class="actions">
+        <button id="scanBtn" class="btn-primary">Buscar</button>
+        <button id="cancelBtn" class="btn-danger hidden" type="button">Cancelar</button>
+      </div>
+    </div>
+    <label class="checkrow" for="strictValidation">
+      <input id="strictValidation" type="checkbox" {% if strict_validation_default %}checked{% endif %}>
+      <span>Verificación estricta final con `balanceOf()` on-chain. Es más lenta, pero corrige desvíos entre el índice y la cadena antes de entregar resultados.</span>
+    </label>
+  </section>
+
+  <section class="card hidden" id="statusCard">
+    <div class="row">
+      <div>
+        <h3>Estado del job</h3>
+        <p id="phaseText" class="muted small" style="margin:6px 0 0;">En espera</p>
+      </div>
+      <strong id="progressText">0.0%</strong>
+    </div>
+    <div class="progress-shell">
+      <div class="progress"><div id="bar" class="bar"></div></div>
+    </div>
+    <p id="message" class="muted" style="margin:14px 0 0;">Esperando...</p>
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-label">Matches</span>
+        <span id="matches" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Holders activos</span>
+        <span id="candidateWallets" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Transfers indexadas</span>
+        <span id="indexedTransfers" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Bloque índice</span>
+        <span id="indexedThroughBlock" class="stat-value">0</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card hidden" id="resultsCard">
+    <div class="row">
+      <div>
+        <h2>Resultados</h2>
+        <p id="summary" class="muted small" style="margin:6px 0 0;"></p>
+      </div>
+      <div class="actions">
+        <button id="xlsxBtn" class="btn-success" type="button">Exportar XLSX</button>
+        <button id="csvBtn" class="btn-secondary" type="button">Exportar CSV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Wallet</th><th class="num">Balance</th><th>Token</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <span id="pageInfo" class="muted small"></span>
+      <div class="pager-controls">
+        <button id="prevBtn" class="btn-secondary" type="button">Anterior</button>
+        <button id="nextBtn" class="btn-secondary" type="button">Siguiente</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="margin-bottom:14px;">
+      <div>
+        <h2>Wallet Report</h2>
+        <p class="muted small" style="margin:6px 0 0;">Ingresá una wallet y un rango de días para rastrear todas sus entradas, salidas y self-transfers en Netsbo. El Excel guarda `Amount` exacto como texto y también el `Raw Value` para no perder precisión.</p>
+      </div>
+    </div>
+    <div id="walletNotice" class="notice hidden"></div>
+    <div class="grid wallet-grid">
+      <div>
+        <label for="walletAddress">Wallet</label>
+        <input id="walletAddress" type="text" class="mono" placeholder="0x...">
+      </div>
+      <div>
+        <label for="walletDays">Días hacia atrás</label>
+        <input id="walletDays" type="number" min="1" step="1" value="30">
+      </div>
+      <div class="actions">
+        <button id="walletReportBtn" class="btn-primary" type="button">Generar reporte</button>
+        <button id="walletCancelBtn" class="btn-danger hidden" type="button">Cancelar</button>
+      </div>
+    </div>
+    <p class="muted small" style="margin:14px 0 0;">Rangos largos pueden tardar bastante más porque el sistema revisa todos los eventos `Transfer` donde la wallet aparece como origen o destino.</p>
+  </section>
+
+  <section class="card hidden" id="walletStatusCard">
+    <div class="row">
+      <div>
+        <h3>Estado del Wallet Report</h3>
+        <p id="walletPhaseText" class="muted small" style="margin:6px 0 0;">En espera</p>
+      </div>
+      <strong id="walletProgressText">0.0%</strong>
+    </div>
+    <div class="progress-shell">
+      <div class="progress"><div id="walletBar" class="bar"></div></div>
+    </div>
+    <p id="walletMessage" class="muted" style="margin:14px 0 0;">Esperando...</p>
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-label">Transfers</span>
+        <span id="walletTotalTransfers" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Entradas</span>
+        <span id="walletTransfersIn" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Salidas</span>
+        <span id="walletTransfersOut" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Self</span>
+        <span id="walletTransfersSelf" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Tokens únicos</span>
+        <span id="walletUniqueTokens" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Bloque final</span>
+        <span id="walletEndBlock" class="stat-value">0</span>
+      </div>
+    </div>
+    <p id="walletSummary" class="muted small" style="margin:16px 0 0;"></p>
+    <div class="actions" id="walletActions" style="margin-top:16px;">
+      <button id="walletDownloadBtn" class="btn-success hidden" type="button">Descargar XLSX</button>
+      <button id="walletResetBtn" class="btn-secondary hidden" type="button">Nuevo reporte</button>
+    </div>
+  </section>
+</div>
+
+<script>
+let currentJobId = null;
+let currentPage = 1;
+let totalPages = 1;
+let pollTimer = null;
+let currentToken = "";
+let walletReportJobId = null;
+let walletPollTimer = null;
+const WALLET_REPORT_MAX_DAYS = {{ wallet_report_max_days|tojson }};
+
+function fmtBalance(value){
+  const raw = String(value ?? "");
+  if(!/^-?\d+(\.\d+)?$/.test(raw)){
+    return raw;
+  }
+  const negative = raw.startsWith("-");
+  const normalized = negative ? raw.slice(1) : raw;
+  const parts = normalized.split(".");
+  const whole = Number(parts[0] || "0").toLocaleString("es-UY");
+  const fractional = (parts[1] || "").replace(/0+$/, "");
+  const rendered = fractional ? `${whole}.${fractional}` : whole;
+  return negative ? `-${rendered}` : rendered;
+}
+
+function fmtInt(value){
+  const numeric = Number(value || 0);
+  return Number.isFinite(numeric) ? numeric.toLocaleString("es-UY") : "0";
+}
+
+function fmtDuration(value){
+  if(value === null || value === undefined || value === ""){
+    return "en curso";
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? `${numeric.toLocaleString("es-UY", { maximumFractionDigits: 2 })} s` : String(value);
+}
+
+function phaseLabel(phase){
+  const labels = {
+    queued: "En cola",
+    starting: "Conectando al RPC",
+    indexing: "Sincronizando índice local",
+    filtering: "Filtrando resultados desde el índice",
+    validating: "Verificando balances on-chain",
+    done: "Completado",
+    cancelled: "Cancelado",
+    error: "Con error"
+  };
+  return labels[phase] || "Procesando";
+}
+
+function walletPhaseLabel(phase){
+  const labels = {
+    queued: "En cola",
+    starting: "Conectando al RPC",
+    searching: "Buscando bloque inicial",
+    fetching_logs: "Consultando logs",
+    processing: "Procesando transferencias",
+    generating: "Generando Excel",
+    complete: "Completado",
+    done: "Completado",
+    cancelled: "Cancelado",
+    error: "Con error"
+  };
+  return labels[phase] || "Procesando";
+}
+
+function showNotice(message, type = "info"){
+  const notice = document.getElementById("notice");
+  notice.textContent = message;
+  notice.className = `notice notice-${type}`;
+}
+
+function clearNotice(){
+  const notice = document.getElementById("notice");
+  notice.textContent = "";
+  notice.className = "notice hidden";
+}
+
+function showWalletNotice(message, type = "info"){
+  const notice = document.getElementById("walletNotice");
+  notice.textContent = message;
+  notice.className = `notice notice-${type}`;
+}
+
+function clearWalletNotice(){
+  const notice = document.getElementById("walletNotice");
+  notice.textContent = "";
+  notice.className = "notice hidden";
+}
+
+function stopPolling(){
+  if(pollTimer){
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function stopWalletPolling(){
+  if(walletPollTimer){
+    clearInterval(walletPollTimer);
+    walletPollTimer = null;
+  }
+}
+
+function setIdleState(){
+  document.getElementById("scanBtn").disabled = false;
+  document.getElementById("cancelBtn").classList.add("hidden");
+  document.getElementById("cancelBtn").disabled = false;
+  document.getElementById("token").disabled = false;
+  document.getElementById("min").disabled = false;
+  document.getElementById("max").disabled = false;
+  document.getElementById("strictValidation").disabled = false;
+}
+
+function setRunningState(){
+  document.getElementById("scanBtn").disabled = true;
+  document.getElementById("cancelBtn").classList.remove("hidden");
+  document.getElementById("cancelBtn").disabled = false;
+  document.getElementById("token").disabled = true;
+  document.getElementById("min").disabled = true;
+  document.getElementById("max").disabled = true;
+  document.getElementById("strictValidation").disabled = true;
+}
+
+function setWalletIdleState(){
+  document.getElementById("walletReportBtn").disabled = false;
+  document.getElementById("walletCancelBtn").classList.add("hidden");
+  document.getElementById("walletCancelBtn").disabled = false;
+  document.getElementById("walletAddress").disabled = false;
+  document.getElementById("walletDays").disabled = false;
+}
+
+function setWalletRunningState(){
+  document.getElementById("walletReportBtn").disabled = true;
+  document.getElementById("walletCancelBtn").classList.remove("hidden");
+  document.getElementById("walletCancelBtn").disabled = false;
+  document.getElementById("walletAddress").disabled = true;
+  document.getElementById("walletDays").disabled = true;
+  document.getElementById("walletDownloadBtn").classList.add("hidden");
+  document.getElementById("walletResetBtn").classList.add("hidden");
+}
+
+function resetProgress(){
+  document.getElementById("statusCard").classList.remove("hidden");
+  document.getElementById("resultsCard").classList.add("hidden");
+  document.getElementById("bar").style.width = "0%";
+  document.getElementById("progressText").textContent = "0.0%";
+  document.getElementById("phaseText").textContent = "En espera";
+  document.getElementById("message").textContent = "Preparando escaneo...";
+  document.getElementById("matches").textContent = "0";
+  document.getElementById("candidateWallets").textContent = "0";
+  document.getElementById("indexedTransfers").textContent = "0";
+  document.getElementById("indexedThroughBlock").textContent = "0";
+}
+
+function resetResultsTable(){
+  document.getElementById("tbody").innerHTML = "";
+  document.getElementById("summary").textContent = "";
+  document.getElementById("pageInfo").textContent = "";
+}
+
+function resetWalletProgress(){
+  document.getElementById("walletStatusCard").classList.remove("hidden");
+  document.getElementById("walletBar").style.width = "0%";
+  document.getElementById("walletProgressText").textContent = "0.0%";
+  document.getElementById("walletPhaseText").textContent = "En espera";
+  document.getElementById("walletMessage").textContent = "Preparando reporte...";
+  document.getElementById("walletTotalTransfers").textContent = "0";
+  document.getElementById("walletTransfersIn").textContent = "0";
+  document.getElementById("walletTransfersOut").textContent = "0";
+  document.getElementById("walletTransfersSelf").textContent = "0";
+  document.getElementById("walletUniqueTokens").textContent = "0";
+  document.getElementById("walletEndBlock").textContent = "0";
+  document.getElementById("walletSummary").textContent = "";
+  document.getElementById("walletDownloadBtn").classList.add("hidden");
+  document.getElementById("walletResetBtn").classList.add("hidden");
+}
+
+async function fetchJson(url, options){
+  const response = await fetch(url, options);
+  const contentType = response.headers.get("content-type") || "";
+  const payload = contentType.includes("application/json")
+    ? await response.json()
+    : { error: await response.text() };
+  if(!response.ok){
+    throw new Error(payload.error || "La solicitud falló");
+  }
+  return payload;
+}
+
+async function loadTokens(){
+  try {
+    const tokens = await fetchJson("/api/tokens");
+    const select = document.getElementById("token");
+    select.innerHTML = '<option value="">Seleccionar token</option>';
+    tokens.forEach(token => {
+      const option = document.createElement("option");
+      option.value = token.symbol;
+      option.textContent = `${token.symbol} - ${token.name}`;
+      select.appendChild(option);
+    });
+  } catch (error) {
+    showNotice(error.message, "error");
+  }
+}
+
+function validateFilters(token, min, max){
+  if(!token){
+    throw new Error("Elegí un token antes de iniciar el escaneo.");
+  }
+  if(min !== "" && Number(min) < 0){
+    throw new Error("El mínimo no puede ser negativo.");
+  }
+  if(max !== "" && Number(max) < 0){
+    throw new Error("El máximo no puede ser negativo.");
+  }
+  if(min !== "" && max !== "" && Number(min) > Number(max)){
+    throw new Error("El mínimo no puede ser mayor que el máximo.");
+  }
+}
+
+function validateWalletReport(wallet, days){
+  if(!wallet){
+    throw new Error("Ingresá una wallet antes de generar el reporte.");
+  }
+  if(!/^0x[a-fA-F0-9]{40}$/.test(wallet)){
+    throw new Error("La wallet debe tener formato válido `0x...`.");
+  }
+  if(days === ""){
+    throw new Error("Ingresá la cantidad de días a revisar.");
+  }
+  const parsedDays = Number(days);
+  if(!Number.isInteger(parsedDays) || parsedDays < 1){
+    throw new Error("Los días deben ser un entero positivo.");
+  }
+  if(parsedDays > WALLET_REPORT_MAX_DAYS){
+    throw new Error(`El máximo configurado es ${WALLET_REPORT_MAX_DAYS.toLocaleString("es-UY")} días.`);
+  }
+}
+
+async function startScan(){
+  const token = document.getElementById("token").value;
+  const min = document.getElementById("min").value;
+  const max = document.getElementById("max").value;
+  const strictValidation = document.getElementById("strictValidation").checked;
+
+  try {
+    validateFilters(token, min, max);
+    clearNotice();
+    stopPolling();
+    currentToken = token;
+    currentJobId = null;
+    currentPage = 1;
+    totalPages = 1;
+    resetProgress();
+    resetResultsTable();
+    setRunningState();
+
+    const payload = {
+      tokenSymbol: token,
+      minTokens: min === "" ? null : min,
+      maxTokens: max === "" ? null : max,
+      strictValidation
+    };
+    const data = await fetchJson("/api/token-scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    currentJobId = data.jobId;
+    showNotice(`Escaneo iniciado para ${token}. Si el índice ya existe, solo se sincronizarán bloques nuevos.`, "info");
+    pollTimer = setInterval(checkStatus, 1500);
+    await checkStatus();
+  } catch (error) {
+    setIdleState();
+    showNotice(error.message, "error");
+  }
+}
+
+async function cancelScan(){
+  if(!currentJobId){
+    return;
+  }
+  try {
+    await fetchJson("/api/token-scan/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: currentJobId })
+    });
+    showNotice("Cancelación solicitada. El job se detendrá en el próximo punto seguro.", "info");
+    document.getElementById("cancelBtn").disabled = true;
+  } catch (error) {
+    showNotice(error.message, "error");
+  }
+}
+
+async function checkStatus(){
+  if(!currentJobId){
+    return;
+  }
+  try {
+    const data = await fetchJson(`/api/token-scan/status?job_id=${encodeURIComponent(currentJobId)}`);
+    const progress = Number(data.progress || 0);
+    document.getElementById("bar").style.width = `${Math.min(progress, 100)}%`;
+    document.getElementById("progressText").textContent = `${progress.toFixed(1)}%`;
+    document.getElementById("phaseText").textContent = phaseLabel(data.phase);
+    document.getElementById("message").textContent = data.message || "";
+    document.getElementById("matches").textContent = fmtInt(data.matchesCount);
+    document.getElementById("candidateWallets").textContent = fmtInt(data.candidateWallets);
+    document.getElementById("indexedTransfers").textContent = fmtInt(data.indexedTransfers);
+    document.getElementById("indexedThroughBlock").textContent = fmtInt(data.indexedThroughBlock);
+    document.getElementById("cancelBtn").disabled = Boolean(data.cancelRequested);
+
+    if(data.status === "done"){
+      stopPolling();
+      setIdleState();
+      showNotice(`Escaneo completado en ${fmtDuration(data.durationSeconds)}.`, "info");
+      await loadPage(1);
+      return;
+    }
+
+    if(data.status === "cancelled"){
+      stopPolling();
+      setIdleState();
+      showNotice(data.message || "El escaneo fue cancelado.", "info");
+      return;
+    }
+
+    if(data.status === "error"){
+      stopPolling();
+      setIdleState();
+      showNotice(data.error || "El escaneo falló.", "error");
+    }
+  } catch (error) {
+    stopPolling();
+    setIdleState();
+    showNotice(error.message, "error");
+  }
+}
+
+async function loadPage(page){
+  if(!currentJobId){
+    return;
+  }
+  try {
+    const data = await fetchJson(`/api/token-scan/result?job_id=${encodeURIComponent(currentJobId)}&page=${page}`);
+    currentPage = data.page;
+    totalPages = data.totalPages;
+    document.getElementById("resultsCard").classList.remove("hidden");
+    const cacheNote = data.cached
+      ? `Sin bloques nuevos; se revalidaron ${fmtInt(data.recheckedBlocks)} bloques recientes.`
+      : `Bloques nuevos procesados: ${fmtInt(data.newBlocksProcessed)}. Bloques recientes rechecados: ${fmtInt(data.recheckedBlocks)}.`;
+    const strictNote = data.strictValidation
+      ? ` Verificación estricta: ${fmtInt(data.strictChecked)} wallets chequeadas, ${fmtInt(data.strictMismatches)} diferencias corregidas y ${fmtInt(data.strictRemoved)} wallets descartadas tras el recheck.`
+      : "";
+    document.getElementById("summary").textContent =
+      `Total encontrado: ${fmtInt(data.total)}. Holders activos: ${fmtInt(data.candidateWallets)}. Transfers indexadas: ${fmtInt(data.indexedTransfers)}. Transfers procesadas en este job: ${fmtInt(data.newTransfersIndexed)}. Transfers revertidas para resincronizar: ${fmtInt(data.revertedTransfers)}. Índice hasta bloque: ${fmtInt(data.indexedThroughBlock)} de ${fmtInt(data.latestBlock)}. ${cacheNote}${strictNote} Duración: ${fmtDuration(data.durationSeconds)}.`;
+    document.getElementById("pageInfo").textContent = `Página ${currentPage} de ${totalPages}`;
+    document.getElementById("prevBtn").disabled = currentPage <= 1;
+    document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = "";
+    if(!data.results.length){
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">No hubo wallets que cumplieran con el filtro elegido.</td></tr>';
+      return;
+    }
+
+    data.results.forEach(item => {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td class="mono">${item.wallet}</td><td class="num">${fmtBalance(item.balance)}</td><td>${item.tokenSymbol}</td>`;
+      tbody.appendChild(row);
+    });
+  } catch (error) {
+    showNotice(error.message, "error");
+  }
+}
+
+function exportCsv(){
+  if(currentJobId){
+    window.location.href = `/api/token-scan/export.csv?job_id=${encodeURIComponent(currentJobId)}`;
+  }
+}
+
+function exportXlsx(){
+  if(currentJobId){
+    window.location.href = `/api/token-scan/export?job_id=${encodeURIComponent(currentJobId)}`;
+  }
+}
+
+async function startWalletReport(){
+  const wallet = document.getElementById("walletAddress").value.trim();
+  const days = document.getElementById("walletDays").value.trim();
+
+  try {
+    validateWalletReport(wallet, days);
+    clearWalletNotice();
+    stopWalletPolling();
+    walletReportJobId = null;
+    resetWalletProgress();
+    setWalletRunningState();
+
+    const data = await fetchJson("/api/wallet-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wallet,
+        days: Number(days)
+      })
+    });
+    walletReportJobId = data.jobId;
+    showWalletNotice("Wallet Report iniciado. El archivo se guardará localmente cuando termine.", "info");
+    walletPollTimer = setInterval(checkWalletReportStatus, 2000);
+    await checkWalletReportStatus();
+  } catch (error) {
+    setWalletIdleState();
+    showWalletNotice(error.message, "error");
+  }
+}
+
+async function cancelWalletReport(){
+  if(!walletReportJobId){
+    return;
+  }
+  try {
+    await fetchJson("/api/wallet-report/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: walletReportJobId })
+    });
+    showWalletNotice("Cancelación solicitada. El reporte se detendrá en el próximo punto seguro.", "info");
+    document.getElementById("walletCancelBtn").disabled = true;
+  } catch (error) {
+    showWalletNotice(error.message, "error");
+  }
+}
+
+function updateWalletStats(data){
+  document.getElementById("walletTotalTransfers").textContent = fmtInt(data.totalTransfers);
+  document.getElementById("walletTransfersIn").textContent = fmtInt(data.transfersIn);
+  document.getElementById("walletTransfersOut").textContent = fmtInt(data.transfersOut);
+  document.getElementById("walletTransfersSelf").textContent = fmtInt(data.transfersSelf);
+  document.getElementById("walletUniqueTokens").textContent = fmtInt(data.uniqueTokens);
+  document.getElementById("walletEndBlock").textContent = fmtInt(data.endBlock);
+}
+
+async function checkWalletReportStatus(){
+  if(!walletReportJobId){
+    return;
+  }
+  try {
+    const data = await fetchJson(`/api/wallet-report/status?job_id=${encodeURIComponent(walletReportJobId)}`);
+    const progress = Number(data.progress || 0);
+    document.getElementById("walletBar").style.width = `${Math.min(progress, 100)}%`;
+    document.getElementById("walletProgressText").textContent = `${progress.toFixed(1)}%`;
+    document.getElementById("walletPhaseText").textContent = walletPhaseLabel(data.phase);
+    document.getElementById("walletMessage").textContent = data.message || "";
+    document.getElementById("walletCancelBtn").disabled = Boolean(data.cancelRequested);
+    updateWalletStats(data);
+
+    const blockRange = data.startBlock || data.endBlock
+      ? `Bloques revisados: ${fmtInt(data.startBlock)} a ${fmtInt(data.endBlock)}. `
+      : "";
+    const durationNote = data.durationSeconds !== null && data.durationSeconds !== undefined
+      ? `Duración: ${fmtDuration(data.durationSeconds)}.`
+      : "";
+    document.getElementById("walletSummary").textContent =
+      `${blockRange}Transfers: ${fmtInt(data.totalTransfers)}. Entradas: ${fmtInt(data.transfersIn)}. Salidas: ${fmtInt(data.transfersOut)}. Self: ${fmtInt(data.transfersSelf)}. Tokens únicos: ${fmtInt(data.uniqueTokens)}. ${durationNote}`;
+
+    if(data.status === "done"){
+      stopWalletPolling();
+      setWalletIdleState();
+      document.getElementById("walletDownloadBtn").classList.remove("hidden");
+      document.getElementById("walletResetBtn").classList.remove("hidden");
+      showWalletNotice(`Wallet Report completado en ${fmtDuration(data.durationSeconds)}.`, "info");
+      return;
+    }
+
+    if(data.status === "cancelled"){
+      stopWalletPolling();
+      setWalletIdleState();
+      document.getElementById("walletResetBtn").classList.remove("hidden");
+      showWalletNotice(data.message || "El reporte fue cancelado.", "info");
+      return;
+    }
+
+    if(data.status === "error"){
+      stopWalletPolling();
+      setWalletIdleState();
+      document.getElementById("walletResetBtn").classList.remove("hidden");
+      showWalletNotice(data.error || "El reporte falló.", "error");
+    }
+  } catch (error) {
+    stopWalletPolling();
+    setWalletIdleState();
+    showWalletNotice(error.message, "error");
+  }
+}
+
+function downloadWalletReport(){
+  if(walletReportJobId){
+    window.location.href = `/api/wallet-report/download?job_id=${encodeURIComponent(walletReportJobId)}`;
+  }
+}
+
+function resetWalletReportState(){
+  stopWalletPolling();
+  walletReportJobId = null;
+  clearWalletNotice();
+  setWalletIdleState();
+  document.getElementById("walletStatusCard").classList.add("hidden");
+}
+
+document.getElementById("scanBtn").addEventListener("click", startScan);
+document.getElementById("cancelBtn").addEventListener("click", cancelScan);
+document.getElementById("prevBtn").addEventListener("click", () => {
+  if(currentPage > 1){
+    loadPage(currentPage - 1);
+  }
+});
+document.getElementById("nextBtn").addEventListener("click", () => {
+  if(currentPage < totalPages){
+    loadPage(currentPage + 1);
+  }
+});
+document.getElementById("csvBtn").addEventListener("click", exportCsv);
+document.getElementById("xlsxBtn").addEventListener("click", exportXlsx);
+document.getElementById("walletReportBtn").addEventListener("click", startWalletReport);
+document.getElementById("walletCancelBtn").addEventListener("click", cancelWalletReport);
+document.getElementById("walletDownloadBtn").addEventListener("click", downloadWalletReport);
+document.getElementById("walletResetBtn").addEventListener("click", resetWalletReportState);
+
+setIdleState();
+setWalletIdleState();
+loadTokens();
+</script>
+</body>
+</html>
