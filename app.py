@@ -1486,6 +1486,14 @@ def index():
     )
 
 
+@app.route("/healthz")
+def healthz():
+    return jsonify({
+        "ok": True,
+        "service": "TokenScannerLocal",
+    })
+
+
 @app.route("/api/tokens")
 def api_tokens():
     cleanup_finished_jobs()
@@ -1850,4 +1858,6 @@ init_db()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=DEBUG_MODE)
+    host = os.environ.get("HOST", "127.0.0.1").strip() or "127.0.0.1"
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host=host, port=port, debug=DEBUG_MODE)

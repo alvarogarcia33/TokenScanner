@@ -21,6 +21,39 @@ Abrí en el navegador:
 
 http://127.0.0.1:5000
 
+## Publicarlo en internet
+La forma más simple de dejarlo online es usar Render con un disco persistente.
+
+Qué necesitás:
+- una cuenta en Render
+- este repo en GitHub
+- un servicio `Web Service` con plan pago, porque el scanner necesita disco persistente para SQLite y reportes
+
+Este repo ya quedó preparado para eso con:
+- [render.yaml](./render.yaml)
+- [requirements.txt](./requirements.txt)
+- [.python-version](./.python-version)
+
+Pasos:
+1. Entrá a Render y conectá tu cuenta de GitHub.
+2. Creá un nuevo `Blueprint` o `Web Service` usando este repo.
+3. Si usás `Blueprint`, Render va a leer `render.yaml` y crear el servicio casi solo.
+4. Si lo hacés manual, usá estos valores:
+   - `Build Command`: `pip install -r requirements.txt`
+   - `Start Command`: `gunicorn -w 1 -k gthread --threads 8 -b 0.0.0.0:$PORT app:app`
+   - `Health Check Path`: `/healthz`
+   - disco persistente en `/var/data`
+   - variable `TOKEN_SCANNER_DATA_DIR=/var/data`
+   - Python `3.13.5`
+5. Esperá a que Render termine el deploy.
+6. Primero probalo con la URL pública de Render, algo como `https://token-scanner.onrender.com`.
+7. Después agregá tu dominio en Render y copiá los registros DNS que te pida tu proveedor de dominio.
+
+Importante:
+- El servicio debe quedar con `1` sola instancia. Hoy los jobs activos viven en memoria del proceso.
+- Sin disco persistente, se perderían la base SQLite y los reportes en cada redeploy o reinicio.
+- Si más adelante querés escalar a varias instancias, conviene mover jobs y estado a una base/cola externa.
+
 ## Qué hace ahora
 - Construye un índice local persistente por token usando eventos `Transfer`.
 - Reutiliza ese índice en escaneos futuros y solo sincroniza bloques nuevos.

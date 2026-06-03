@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: token-scanner
+    runtime: python
+    plan: starter
+    numInstances: 1
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 1 -k gthread --threads 8 -b 0.0.0.0:$PORT app:app
+    healthCheckPath: /healthz
+    maxShutdownDelaySeconds: 120
+    disk:
+      name: token-scanner-data
+      mountPath: /var/data
+      sizeGB: 5
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: TOKEN_SCANNER_DATA_DIR
+        value: /var/data
+      - key: TOKEN_SCANNER_CONFIRMATION_BLOCKS
+        value: "6"
+      - key: TOKEN_SCANNER_REORG_LOOKBACK_BLOCKS
+        value: "25"
