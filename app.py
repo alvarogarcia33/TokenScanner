@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import os
+import shutil
 import sqlite3
 import sys
 import threading
@@ -72,6 +73,14 @@ DEBUG_MODE = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
 WALLET_REPORT_BATCH_SIZE = max(int(os.environ.get("TOKEN_SCANNER_WALLET_REPORT_BATCH_SIZE", "3000")), 1)
 WALLET_REPORT_MIN_BATCH_SIZE = max(int(os.environ.get("TOKEN_SCANNER_WALLET_REPORT_MIN_BATCH_SIZE", "100")), 1)
 WALLET_REPORT_MAX_DAYS = max(int(os.environ.get("TOKEN_SCANNER_WALLET_REPORT_MAX_DAYS", "3650")), 1)
+WALLET_REPORT_RETENTION_SECONDS = max(
+    int(os.environ.get("TOKEN_SCANNER_WALLET_REPORT_RETENTION_SECONDS", str(7 * 24 * 60 * 60))),
+    JOB_RETENTION_SECONDS,
+)
+WALLET_REPORT_TEMP_FILE_MAX_AGE_SECONDS = max(
+    int(os.environ.get("TOKEN_SCANNER_WALLET_REPORT_TEMP_FILE_MAX_AGE_SECONDS", "3600")),
+    300,
+)
 
 DECIMALS_ABI = [{
     "constant": True, "inputs": [], "name": "decimals",
@@ -230,6 +239,7 @@ def cleanup_finished_jobs(now: float | None = None):
         ]
         for job_id in stale_job_ids:
             JOBS.pop(job_id, None)
+    cleanup_wallet_report_artifacts(current_time)
 
 
 def get_web3_connection() -> Web3:
@@ -271,6 +281,112 @@ def get_wallet_report_file_path(job_id: str) -> Path:
 
 def build_wallet_report_download_url(job_id: str) -> str:
     return f"/api/wallet-report/download?job_id={job_id}"
+
+
+def cleanup_wallet_report_artifacts(now: float | None = None):
+    current_time = now or time.time()
+    report_cutoff = current_time - WALLET_REPORT_RETENTION_SECONDS
+    temp_cutoff = current_time - WALLET_REPORT_TEMP_FILE_MAX_AGE_SECONDS
+
+    try:
+        entries = list(WALLET_REPORTS_DIR.iterdir())
+    except FileNotFoundError:
+        return
+
+    for entry in entries:
+        try:
+            if not entry.is_file():
+                continue
+
+            if entry.suffix == ".tmp":
+                if entry.stat().st_mtime < temp_cutoff:
+                    entry.unlink(missing_ok=True)
+                continue
+
+            if entry.suffix not in {".json", ".xlsx"}:
+                continue
+
+            if entry.stat().st_mtime < report_cutoff:
+                entry.unlink(missing_ok=True)
+        except FileNotFoundError:
+            continue
+        except OSError:
+            continue
+
+
+def get_active_wallet_report_job_ids() -> set[str]:
+    with JOBS_LOCK:
+        return {
+            job_id
+            for job_id, job in JOBS.items()
+            if job.get("jobType") == "wallet-report" and job.get("status") in {"pending", "running"}
+        }
+
+
+def prune_wallet_report_artifacts_for_space(required_bytes: int):
+    reserve_bytes = 5 * 1024 * 1024
+
+    try:
+        usage = shutil.disk_usage(WALLET_REPORTS_DIR)
+    except OSError:
+        return
+
+    if usage.free >= required_bytes + reserve_bytes:
+        return
+
+    protected_job_ids = get_active_wallet_report_job_ids()
+    candidates: list[Path] = []
+
+    try:
+        for entry in WALLET_REPORTS_DIR.iterdir():
+            if not entry.is_file():
+                continue
+            if entry.suffix not in {".json", ".xlsx", ".tmp"}:
+                continue
+            job_id = entry.name.split(".", 1)[0]
+            if job_id in protected_job_ids:
+                continue
+            candidates.append(entry)
+    except FileNotFoundError:
+        return
+
+    candidates.sort(key=lambda entry: entry.stat().st_mtime)
+
+    for entry in candidates:
+        try:
+            entry.unlink(missing_ok=True)
+        except FileNotFoundError:
+            continue
+        except OSError:
+            continue
+
+        try:
+            usage = shutil.disk_usage(WALLET_REPORTS_DIR)
+        except OSError:
+            return
+
+        if usage.free >= required_bytes + reserve_bytes:
+            return
+
+
+def ensure_wallet_report_disk_space(required_bytes: int):
+    cleanup_wallet_report_artifacts()
+    prune_wallet_report_artifacts_for_space(required_bytes)
+
+    try:
+        usage = shutil.disk_usage(WALLET_REPORTS_DIR)
+    except OSError:
+        return
+
+    reserve_bytes = 5 * 1024 * 1024
+    if usage.free < required_bytes + reserve_bytes:
+        raise OSError(
+            28,
+            (
+                "No hay espacio suficiente para guardar el reporte. "
+                "Liberá espacio en el disco persistente de Render o aumentá su tamaño."
+            ),
+        )
 
 
 def persist_wallet_report_manifest(job: dict[str, Any]):
@@ -1406,6 +1522,7 @@ def run_wallet_report_job(job_id: str, wallet: str, days: int):
         file_bytes = result["xlsxBytes"]
         file_path = get_wallet_report_file_path(job_id)
         temp_path = file_path.with_suffix(".xlsx.tmp")
+        ensure_wallet_report_disk_space(len(file_bytes))
         temp_path.write_bytes(file_bytes)
         temp_path.replace(file_path)
 

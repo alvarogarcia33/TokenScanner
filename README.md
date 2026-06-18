@@ -54,6 +54,40 @@ Importante:
 - Sin disco persistente, se perderían la base SQLite y los reportes en cada redeploy o reinicio.
 - Si más adelante querés escalar a varias instancias, conviene mover jobs y estado a una base/cola externa.
 
+## Operacion en Render
+Estado actual esperado del sitio publicado:
+- dominio principal: `https://imperium-tokenscanner.lat`
+- subdominio de respaldo: `https://imperium-tokenscanner.onrender.com`
+- plan del servicio: `Starter`
+- una sola instancia
+
+Checklist inicial:
+1. Abrir `https://imperium-tokenscanner.lat` y confirmar que carga la UI.
+2. En Render, verificar `Build Command`: `pip install -r requirements.txt`.
+3. En Render, verificar `Start Command`: `gunicorn -w 1 -k gthread --threads 8 -b 0.0.0.0:$PORT app:app`.
+4. Verificar `Health Check Path`: `/healthz`.
+5. Verificar variable de entorno: `TOKEN_SCANNER_DATA_DIR=/var/data`.
+6. Verificar disco persistente montado en `/var/data`.
+7. Verificar `Auto-Deploy` en `On Commit`.
+8. Verificar dominios custom activos: `imperium-tokenscanner.lat` y `www.imperium-tokenscanner.lat`.
+
+Checklist de mantenimiento:
+1. Cuando hagas cambios en el proyecto, subilos a `main` y Render redeploya solo.
+2. Después de cada deploy, mirar logs de arranque y confirmar que no haya errores de importación o arranque de `gunicorn`.
+3. Probar un escaneo corto de `Token Scanner`.
+4. Probar un `Wallet Report` corto y descargar el `.xlsx`.
+5. Si tocás DNS o dominio, mantener estos registros:
+   - `@` -> `A` -> `216.24.57.1`
+   - `www` -> `CNAME` -> `imperium-tokenscanner.onrender.com`
+6. No agregar registros `AAAA` para el dominio si Render no los pidió.
+7. Si alguna vez se expone públicamente el `Deploy Hook`, regenerarlo desde Render.
+8. Los `Wallet Report` guardados en disco se limpian automáticamente con retención y, si hace falta, el sistema elimina reportes viejos para recuperar espacio.
+
+Antes de borrar, recrear o mover el servicio:
+1. Hacer backup de `scanner_data.db`.
+2. Hacer backup de la carpeta `wallet_reports`.
+3. Confirmar que el nuevo servicio también use `/var/data`.
+
 ## Qué hace ahora
 - Construye un índice local persistente por token usando eventos `Transfer`.
 - Reutiliza ese índice en escaneos futuros y solo sincroniza bloques nuevos.
@@ -106,6 +140,7 @@ $env:TOKEN_SCANNER_DATA_DIR="C:\mis_datos\token_scanner"
 $env:TOKEN_SCANNER_WALLET_REPORT_BATCH_SIZE="3000"
 $env:TOKEN_SCANNER_WALLET_REPORT_MIN_BATCH_SIZE="100"
 $env:TOKEN_SCANNER_WALLET_REPORT_MAX_DAYS="3650"
+$env:TOKEN_SCANNER_WALLET_REPORT_RETENTION_SECONDS="604800"
 python app.py
 ```
 
