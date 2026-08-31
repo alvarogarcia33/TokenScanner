@@ -104,10 +104,18 @@ TOKEN_CACHE_LOCK = threading.Lock()
 TOKEN_CACHE: dict[str, Any] = {"mtime": None, "tokens": [], "by_symbol": {}}
 DB_INIT_LOCK = threading.Lock()
 DB_INITIALIZED = False
+DB_INIT_ERROR: str | None = None
 
 
 class JobCancelled(Exception):
     pass
+
+
+def is_storage_capacity_error(exc: BaseException) -> bool:
+    if isinstance(exc, OSError) and exc.errno == 28:
+        return True
+    message = str(exc).lower()
+    return "database or disk is full" in message or "no space left on device" in message
 
 
 def get_db_connection() -> sqlite3.Connection:
@@ -120,7 +128,7 @@ def get_db_connection() -> sqlite3.Connection:
 
 
 def init_db():
-    global DB_INITIALIZED
+    global DB_INITIALIZED, DB_INIT_ERROR
     with DB_INIT_LOCK:
         if DB_INITIALIZED:
             return
@@ -173,6 +181,7 @@ def init_db():
             )
             conn.commit()
             DB_INITIALIZED = True
+            DB_INIT_ERROR = None
         finally:
             conn.close()
 
@@ -1608,6 +1617,8 @@ def healthz():
     return jsonify({
         "ok": True,
         "service": "TokenScannerLocal",
+        "databaseReady": DB_INITIALIZED,
+        "storageFull": bool(DB_INIT_ERROR),
     })
 
 
@@ -1765,7 +1776,17 @@ def api_wallet_report_download():
 @app.route("/api/token-scan", methods=["POST"])
 def api_token_scan():
     cleanup_finished_jobs()
-    init_db()
+    try:
+        init_db()
+    except (sqlite3.OperationalError, OSError) as exc:
+        if not is_storage_capacity_error(exc):
+            raise
+        return jsonify({
+            "error": (
+                "El índice del scanner no puede abrirse porque el disco persistente está lleno. "
+                "Liberá espacio o aumentá el tamaño del disco en Render; no se eliminó ningún dato."
+            )
+        }), 507
     data = request.get_json(silent=True) or {}
     token_symbol = str(data.get("tokenSymbol", "")).strip()
     if not token_symbol:
@@ -1971,7 +1992,13 @@ def api_token_scan_export_csv():
     )
 
 
-init_db()
+try:
+    init_db()
+except (sqlite3.OperationalError, OSError) as exc:
+    if not is_storage_capacity_error(exc):
+        raise
+    DB_INIT_ERROR = str(exc)
+    app.logger.error("La base del scanner no pudo inicializarse por falta de espacio: %s", exc)
 
 
 if __name__ == "__main__":
